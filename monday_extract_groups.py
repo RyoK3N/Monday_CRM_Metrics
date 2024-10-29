@@ -4,7 +4,7 @@ import os
 import requests
 import sys
 import csv
-from tqdm import tqdm
+#from tqdm import tqdm
 
 def fetch_groups(board_id, api_key):
     """
