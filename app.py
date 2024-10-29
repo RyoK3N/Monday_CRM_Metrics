@@ -151,15 +151,19 @@ def process_data(dataframes, st_date, end_date, column):
     all_deal = pd.concat(list_all, ignore_index=True)
     
     def filter_date(df, dtcolumn):
-        # Convert column to datetime and handle inconsistencies
-        df[dtcolumn] = pd.to_datetime(df[dtcolumn], errors='coerce').dt.date
-        
+        """
+        Filters the dataframe based on the provided date range.
+        """
+        df = df.copy()
+        df[dtcolumn] = df[dtcolumn].apply(
+            lambda x: pd.to_datetime(x, errors='coerce').date() if pd.notna(x) else pd.NaT
+        )
+
         start_date = pd.to_datetime(st_date).date()
         end_date_ = pd.to_datetime(end_date).date()
 
         # Filter rows where the date is within the specified range
-        filtered_df = df[(df[dtcolumn] >= start_date) & (df[dtcolumn] <= end_date_)]
-        return filtered_df
+        return df[(df[dtcolumn] >= start_date) & (df[dtcolumn] <= end_date_)]
 
     # Initialize a new DataFrame inside the function
     df = pd.DataFrame()
