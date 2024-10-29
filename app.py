@@ -3,13 +3,13 @@ import sys
 import requests
 import pandas as pd
 import numpy as np
-#from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import streamlit as st
 import plotly.express as px
 from monday_extract_groups import fetch_items_recursive, fetch_groups
 
 # Load environment variables
-#load_dotenv()
+# load_dotenv()
 
 # Configure Streamlit page
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
@@ -173,7 +173,7 @@ def process_data(dataframes, st_date, end_date, column):
 
     # Formulas 
     subset = all_deal
-    print("All deals subset shape:", subset.shape)
+    st.write("All deals subset shape:", subset.shape)
     
     # Calculate New Calls Booked per owner
     new_calls_booked = filter_date(subset, column).groupby('Owner').size()
@@ -223,13 +223,13 @@ def process_data(dataframes, st_date, end_date, column):
     close_rate = close_rate.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate %'] = df['Owner'].map(close_rate).fillna(0) * 100
     total_close = df_subset.shape[0]
-    total_close_rate = (total_ncb/total_close ) * 100 if total_ncb != 0 else 0
+    total_close_rate = (total_ncb / total_close ) * 100 if total_close != 0 else 0
 
     # Close Rate (Show)
     close_rate_show = close / df.set_index('Owner')['Sales Call Taken']
     close_rate_show = close_rate_show.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate(Show) %'] = df['Owner'].map(close_rate_show).fillna(0) * 100
-    total_close_rate_show = (total_sct/total_close ) * 100 if total_sct != 0 else 0
+    total_close_rate_show = (total_sct / total_close ) * 100 if total_close != 0 else 0
 
     # Close Rate (MQL)
     df_subset2 = op_proposal.copy()
@@ -238,7 +238,7 @@ def process_data(dataframes, st_date, end_date, column):
     close_show_rate_mql = close_show_rate_mql.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate(MQL) %'] = df['Owner'].map(close_show_rate_mql).fillna(0) * 100
     total_proposal = df_subset2.shape[0]
-    total_close_rate_mql = (total_proposal/total_close ) * 100 if total_proposal != 0 else 0
+    total_close_rate_mql = (total_proposal / total_close ) * 100 if total_close != 0 else 0
 
     # Closed Revenue 
     df_subset = op_won.copy()
@@ -264,7 +264,7 @@ def process_data(dataframes, st_date, end_date, column):
     # Revenue Per Proposal
     rev_per_proposal = owner_sum / prop
     rev_per_proposal = rev_per_proposal.replace([np.inf, -np.inf], 0).fillna(0)
-    df['Revenue Per Proposal $'] = df['Owner'].map(rev_per_proposal).fillna(0)
+    df['Revenue Per Proposal $'] = df['Owner'].map(rev_per_proposal).fillna(0) * 1  # Ensure it's numeric
     total_rev_per_proposal = df['Revenue Per Proposal $'].sum()
 
     # Pipeline Revenue 
@@ -279,7 +279,7 @@ def process_data(dataframes, st_date, end_date, column):
     # Define the totals array
     totals = [
         total_ncb,
-        total_sct,                # New Calls Booked
+        total_sct,                # Sales Call Taken
         total_prop_rate,          # Proposal Rate %
         total_show,               # Show Rate %
         total_uq_rate,            # Unqualified Rate %
@@ -330,11 +330,20 @@ def main():
     This dashboard automatically fetches data from Monday.com, processes it, and provides visual insights into your sales performance.
     """)
 
-    # Fetch data with a spinner
-    with st.spinner("Fetching data from Monday.com..."):
-        dataframes = fetch_data()
-    st.success("Data fetched successfully!")
+    # Initialize session state for 'dataframes' if not already present
+    if 'dataframes' not in st.session_state:
+        st.session_state['dataframes'] = None
 
+    # Fetch Data Button
+    if st.sidebar.button('Fetch Data'):
+        # Fetch data with a spinner
+        with st.spinner("Fetching data from Monday.com..."):
+            try:
+                st.session_state['dataframes'] = fetch_data()
+                st.success("Data fetched successfully!")
+            except Exception as e:
+                st.error(f"An error occurred while fetching data: {e}")
+    
     # Sidebar for filter options
     st.sidebar.header("Filter Options")
 
@@ -356,9 +365,17 @@ def main():
 
     # Process Data Button
     if st.sidebar.button('Process Data'):
+        if st.session_state['dataframes'] is None:
+            st.error("Please fetch data first by clicking the 'Fetch Data' button.")
+            st.stop()
         with st.spinner("Processing data..."):
             try:
-                processed_df = process_data(dataframes, st_date, en_date, date_filter_column)
+                processed_df = process_data(
+                    st.session_state['dataframes'],
+                    st_date,
+                    en_date,
+                    date_filter_column
+                )
                 st.success("Data processed successfully!")
             except KeyError as e:
                 st.error(f"Data processing error: Missing key {e}")
@@ -387,18 +404,6 @@ def main():
             )
             st.plotly_chart(fig1, use_container_width=True)
 
-        # with col3:
-        #     fig2 = px.bar(
-        #         processed_df, 
-        #         x='Owner', 
-        #         y='New Calls Booked', 
-        #         title="New Calls Booked by Owner",
-        #         labels={'New Calls Booked': 'New Calls Booked'},
-        #         color='New Calls Booked',
-        #         color_continuous_scale='Greens'
-        #     )
-        #     st.plotly_chart(fig2, use_container_width=True)
-
         with col2:
             fig3 = px.bar(
                 processed_df, 
@@ -411,7 +416,7 @@ def main():
             )
             st.plotly_chart(fig3, use_container_width=True)
 
-    # Visualizations 2
+        # Visualizations 2
         col1, col2 = st.columns(2)
 
         with col1:
@@ -432,7 +437,7 @@ def main():
                 x='Owner', 
                 y='Sales Call Taken', 
                 title="Sales Call Taken by Owner",
-                labels={'Sales Call Taken': 'Number of Sales Call Taken'},
+                labels={'Sales Call Taken': 'Number of Sales Calls Taken'},
                 color='Sales Call Taken',
                 color_continuous_scale='inferno'
             )
@@ -446,10 +451,8 @@ def main():
                 processed_df, 
                 names='Owner', 
                 values='Closed Revenue $', 
-                title="Closed Revenue",
-                labels={'Closed Revenue $': 'Chart for Closed Revenue "% " by each owner'},
-                #color='Closed Revenue $',
-                #color_continuous_scale='picnic'
+                title="Closed Revenue Distribution by Owner",
+                labels={'Closed Revenue $': 'Closed Revenue ($)'}
             )
             st.plotly_chart(fig1, use_container_width=True)
 
@@ -458,10 +461,8 @@ def main():
                 processed_df, 
                 names='Owner', 
                 values='Revenue Per Proposal $', 
-                title="Revenue Earned Per Proposal",
-                labels={'Revenue Per Proposal $': 'Chart for Closed Revenue "% " by each owner per proposal'},
-                #color='Closed Revenue $',
-                #color_continuous_scale='picnic'
+                title="Revenue Earned Per Proposal by Owner",
+                labels={'Revenue Per Proposal $': 'Revenue Per Proposal ($)'}
             )
             st.plotly_chart(fig2, use_container_width=True)
 
@@ -476,7 +477,6 @@ def main():
             title="Correlation Matrix"
         )
         st.plotly_chart(fig_corr, use_container_width=True)
-
 
 if __name__ == "__main__":
     main()
