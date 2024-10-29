@@ -198,7 +198,7 @@ def process_data(dataframes, st_date, end_date, column):
     uq = filter_date(df_subset, column).groupby('Owner').size()
     uq_rate = uq / df.set_index('Owner')['New Calls Booked']
     df['Unqualified Rate %'] = df['Owner'].map(uq_rate).fillna(0) * 100
-    total_uq_rate = (uq.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
+    total_uq_rate = (filter_date(df_subset, column).shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
 
     # Cancellation Rate  
     df_subset = op_cancelled.copy()
