@@ -1,4 +1,3 @@
-dotenv
 numpy 
 pandas 
 matplotlib
