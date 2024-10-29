@@ -3,13 +3,13 @@ import sys
 import requests
 import pandas as pd
 import numpy as np
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import streamlit as st
 import plotly.express as px
 from monday_extract_groups import fetch_items_recursive, fetch_groups
 
 # Load environment variables
-load_dotenv()
+#load_dotenv()
 
 # Configure Streamlit page
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
