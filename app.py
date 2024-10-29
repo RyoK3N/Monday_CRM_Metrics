@@ -9,7 +9,7 @@ import plotly.express as px
 from monday_extract_groups import fetch_items_recursive, fetch_groups
 
 # Load environment variables
-#load_dotenv()
+load_dotenv()
 
 # Configure Streamlit page
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
@@ -137,117 +137,186 @@ def fetch_data():
     return dataframes
 
 def process_data(dataframes, st_date, end_date, column):
-    """
-    Processes the fetched dataframes to compute various sales metrics.
-    """
-    # Concatenate all deal stages into a single dataframe
-    list_all = [
-        dataframes['cancelled'],
-        dataframes['lost'],
-        dataframes['noshow'],
-        dataframes['proposal'],
-        dataframes['scheduled'],
-        dataframes['unqualified'],
-        dataframes['won']
-    ]
+    # Extract individual DataFrames
+    op_cancelled = dataframes['cancelled']
+    op_lost = dataframes['lost']
+    op_noshow = dataframes['noshow']
+    op_proposal = dataframes['proposal']
+    op_scheduled = dataframes['scheduled']
+    op_unqualified = dataframes['unqualified']
+    op_won = dataframes['won']
+    
+    # Combine all DataFrames
+    list_all = [op_cancelled, op_lost, op_noshow, op_proposal, op_scheduled, op_unqualified, op_won]
     all_deal = pd.concat(list_all, ignore_index=True)
-
+    
     def filter_date(df, dtcolumn):
-        """
-        Filters the dataframe based on the provided date range.
-        """
-        df = df.copy()
-        df[dtcolumn] = df[dtcolumn].apply(
-            lambda x: pd.to_datetime(x, errors='coerce').date() if pd.notna(x) else pd.NaT
-        )
-
+        # Convert column to datetime and handle inconsistencies
+        df[dtcolumn] = pd.to_datetime(df[dtcolumn], errors='coerce').dt.date
+        
         start_date = pd.to_datetime(st_date).date()
         end_date_ = pd.to_datetime(end_date).date()
 
         # Filter rows where the date is within the specified range
-        return df[(df[dtcolumn] >= start_date) & (df[dtcolumn] <= end_date_)]
+        filtered_df = df[(df[dtcolumn] >= start_date) & (df[dtcolumn] <= end_date_)]
+        return filtered_df
 
-    # Initialize the result dataframe with unique owners
+    # Initialize a new DataFrame inside the function
     df = pd.DataFrame()
-    df['Owner'] = all_deal['Owner'].dropna().unique()
 
+    # Initial Column 
+    df['Owner'] = pd.Series(all_deal['Owner'].dropna()).unique()
+
+    # Formulas 
     subset = all_deal
-
+    print("All deals subset shape:", subset.shape)
+    
     # Calculate New Calls Booked per owner
     new_calls_booked = filter_date(subset, column).groupby('Owner').size()
+
+    # New Calls Booked = Sum of all opportunities in all deal stages filtered by date created
     df['New Calls Booked'] = df['Owner'].map(new_calls_booked).fillna(0).astype(int)
+    total_ncb = df['New Calls Booked'].sum()  # Total New Calls Booked
 
     # Sales Call Taken
-    sales_subset = pd.concat([
-        dataframes['unqualified'],
-        dataframes['proposal'],
-        dataframes['won'],
-        dataframes['lost']
-    ], ignore_index=True)
-    sales_calls_taken = filter_date(sales_subset, column).groupby('Owner').size()
+    df_subset = pd.concat([op_unqualified, op_proposal, op_won, op_lost], ignore_index=True)
+    sales_calls_taken = filter_date(df_subset, column).groupby('Owner').size()
     df['Sales Call Taken'] = df['Owner'].map(sales_calls_taken).fillna(0).astype(int)
+    total_sct = df['Sales Call Taken'].sum()
 
-    # Show Rate
+    # Show Rate 
     show_rate = sales_calls_taken / df.set_index('Owner')['New Calls Booked']
     df['Show Rate %'] = df['Owner'].map(show_rate).fillna(0) * 100
+    total_show = (total_sct / total_ncb) * 100 if total_ncb != 0 else 0
 
-    # Unqualified Rate
-    uq = filter_date(dataframes['unqualified'], column).groupby('Owner').size()
+    # Unqualified Rate  
+    df_subset = op_unqualified.copy()
+    uq = filter_date(df_subset, column).groupby('Owner').size()
     uq_rate = uq / df.set_index('Owner')['New Calls Booked']
     df['Unqualified Rate %'] = df['Owner'].map(uq_rate).fillna(0) * 100
+    total_uq_rate = (df_subset.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
 
-    # Cancellation Rate
-    canc = filter_date(dataframes['cancelled'], column).groupby('Owner').size()
+    # Cancellation Rate  
+    df_subset = op_cancelled.copy()
+    canc = filter_date(df_subset, column).groupby('Owner').size()
     canc_rate = canc / df.set_index('Owner')['New Calls Booked']
-    df['Cancellation Rate %'] = df['Owner'].map(canc_rate).replace([np.inf, -np.inf], 0).fillna(0) * 100
+    canc_rate = canc_rate.replace([np.inf, -np.inf], 0).fillna(0)
+    df['Cancellation Rate %'] = df['Owner'].map(canc_rate).fillna(0) * 100
+    total_canc_rate = (df_subset.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
 
-    # Proposal Rate
-    prop = filter_date(dataframes['proposal'], column).groupby('Owner').size()
+    # Proposal Rate  
+    df_subset = op_proposal.copy()
+    prop = filter_date(df_subset, column).groupby('Owner').size()
     prop_rate = prop / df.set_index('Owner')['New Calls Booked']
-    df['Proposal Rate %'] = df['Owner'].map(prop_rate).replace([np.inf, -np.inf], 0).fillna(0) * 100
+    prop_rate = prop_rate.replace([np.inf, -np.inf], 0).fillna(0)
+    df['Proposal Rate %'] = df['Owner'].map(prop_rate).fillna(0) * 100
+    total_prop_rate = (df_subset.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
 
-    # Close Rate
-    close = filter_date(dataframes['won'], column).groupby('Owner').size()
+    # Close Rate  
+    df_subset = op_won.copy()
+    close = filter_date(df_subset, column).groupby('Owner').size()
     close_rate = close / df.set_index('Owner')['New Calls Booked']
-    df['Close Rate %'] = df['Owner'].map(close_rate).replace([np.inf, -np.inf], 0).fillna(0) * 100
+    close_rate = close_rate.replace([np.inf, -np.inf], 0).fillna(0)
+    df['Close Rate %'] = df['Owner'].map(close_rate).fillna(0) * 100
+    total_close = df_subset.shape[0]
+    total_close_rate = (total_ncb/total_close ) * 100 if total_ncb != 0 else 0
 
     # Close Rate (Show)
     close_rate_show = close / df.set_index('Owner')['Sales Call Taken']
     close_rate_show = close_rate_show.replace([np.inf, -np.inf], 0).fillna(0)
-    df['Close Rate (Show) %'] = df['Owner'].map(close_rate_show).fillna(0) * 100
+    df['Close Rate(Show) %'] = df['Owner'].map(close_rate_show).fillna(0) * 100
+    total_close_rate_show = (total_sct/total_close ) * 100 if total_sct != 0 else 0
 
     # Close Rate (MQL)
-    prop_show_mql = filter_date(dataframes['proposal'], column).groupby('Owner').size()
+    df_subset2 = op_proposal.copy()
+    prop_show_mql = filter_date(df_subset2, column).groupby('Owner').size()
     close_show_rate_mql = close / prop_show_mql
     close_show_rate_mql = close_show_rate_mql.replace([np.inf, -np.inf], 0).fillna(0)
-    df['Close Rate (MQL) %'] = df['Owner'].map(close_show_rate_mql).fillna(0) * 100
+    df['Close Rate(MQL) %'] = df['Owner'].map(close_show_rate_mql).fillna(0) * 100
+    total_proposal = df_subset2.shape[0]
+    total_close_rate_mql = (total_proposal/total_close ) * 100 if total_proposal != 0 else 0
 
-    # Closed Revenue
-    close_rev = filter_date(dataframes['won'], column).copy()
+    # Closed Revenue 
+    df_subset = op_won.copy()
+    close_rev = filter_date(df_subset, column)
+    close_rev = close_rev.copy()  # Make a copy to avoid SettingWithCopyWarning
     close_rev['Deal Value'] = pd.to_numeric(close_rev['Deal Value'], errors='coerce').fillna(0)
     owner_sum = close_rev.groupby('Owner')['Deal Value'].sum()
     df['Closed Revenue $'] = df['Owner'].map(owner_sum).fillna(0)
+    total_cr = df['Closed Revenue $'].sum()
 
-    # Revenue per Call
+    # Revenue per Call 
     rev_per_call = owner_sum / df.set_index('Owner')['New Calls Booked']
     rev_per_call = rev_per_call.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Call $'] = df['Owner'].map(rev_per_call).fillna(0)
+    total_rev_per_call = df['Revenue Per Call $'].sum()
 
-    # Revenue per Showed Up
+    # Revenue per Showed Up 
     rev_per_showed_up = owner_sum / df.set_index('Owner')['Sales Call Taken']
     rev_per_showed_up = rev_per_showed_up.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Showed Up $'] = df['Owner'].map(rev_per_showed_up).fillna(0)
+    total_rev_per_showedup = df['Revenue Per Showed Up $'].sum()
 
     # Revenue Per Proposal
     rev_per_proposal = owner_sum / prop
     rev_per_proposal = rev_per_proposal.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Proposal $'] = df['Owner'].map(rev_per_proposal).fillna(0)
+    total_rev_per_proposal = df['Revenue Per Proposal $'].sum()
 
-    # Pipeline Revenue
-    pipeline_rev = filter_date(dataframes['proposal'], column).copy()
+    # Pipeline Revenue 
+    df_subset = op_proposal.copy()
+    pipeline_rev = filter_date(df_subset, column)
+    pipeline_rev = pipeline_rev.copy()
     pipeline_rev['Deal Value'] = pd.to_numeric(pipeline_rev['Deal Value'], errors='coerce').fillna(0)
     owner_sum_prop = pipeline_rev.groupby('Owner')['Deal Value'].sum()
     df['Pipeline Revenue $'] = df['Owner'].map(owner_sum_prop).fillna(0)
+    total_pipeline_rev = df['Pipeline Revenue $'].sum()
+
+    # Define the totals array
+    totals = [
+        total_ncb,
+        total_sct,                # New Calls Booked
+        total_prop_rate,          # Proposal Rate %
+        total_show,               # Show Rate %
+        total_uq_rate,            # Unqualified Rate %
+        total_canc_rate,          # Cancellation Rate %
+        total_close_rate,         # Close Rate %
+        total_close_rate_show,    # Close Rate(Show) %
+        total_close_rate_mql,     # Close Rate(MQL) %
+        total_cr,                 # Closed Revenue $
+        total_rev_per_call,       # Revenue Per Call $
+        total_rev_per_showedup,   # Revenue Per Showed Up $
+        total_rev_per_proposal,   # Revenue Per Proposal $
+        total_pipeline_rev        # Pipeline Revenue $
+    ]
+
+    # List of columns corresponding to totals array
+    columns_for_totals = [
+        'New Calls Booked',
+        'Sales Call Taken',
+        'Proposal Rate %',
+        'Show Rate %',
+        'Unqualified Rate %',
+        'Cancellation Rate %',
+        'Close Rate %',
+        'Close Rate(Show) %',
+        'Close Rate(MQL) %',
+        'Closed Revenue $',
+        'Revenue Per Call $',
+        'Revenue Per Showed Up $',
+        'Revenue Per Proposal $',
+        'Pipeline Revenue $'
+    ]
+
+    # Create a dictionary for the total row
+    total_dict = {col: val for col, val in zip(columns_for_totals, totals)}
+    total_dict['Owner'] = 'Total'
+
+    # Create a DataFrame for the total row
+    total_df = pd.DataFrame([total_dict])
+
+    # Append the total row to the original DataFrame
+    df = pd.concat([df, total_df], ignore_index=True)
 
     return df
 
@@ -394,7 +463,7 @@ def main():
 
         # Additional visualizations can be added here
         st.markdown("---")
-        st.subheader("Correlations in the Data")
+        st.subheader("Correlations in the Metrics")
         correlation = processed_df.select_dtypes(include=[np.number]).corr()
         fig_corr = px.imshow(
             correlation, 
