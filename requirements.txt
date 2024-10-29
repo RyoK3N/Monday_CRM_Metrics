@@ -3,9 +3,4 @@ pandas
 matplotlib
 seaborn 
 plotly
-scikit-learn
-scipy
-sympy
-statsmodels
 requests 
-os
