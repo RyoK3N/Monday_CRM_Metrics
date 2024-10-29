@@ -206,7 +206,7 @@ def process_data(dataframes, st_date, end_date, column):
     canc_rate = canc / df.set_index('Owner')['New Calls Booked']
     canc_rate = canc_rate.replace([np.inf, -np.inf], 0).fillna(0)
     df['Cancellation Rate %'] = df['Owner'].map(canc_rate).fillna(0) * 100
-    total_canc_rate = (df_subset.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
+    total_canc_rate = (filter_date(df_subset, column).shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
 
     # Proposal Rate  
     df_subset = op_proposal.copy()
@@ -214,7 +214,7 @@ def process_data(dataframes, st_date, end_date, column):
     prop_rate = prop / df.set_index('Owner')['New Calls Booked']
     prop_rate = prop_rate.replace([np.inf, -np.inf], 0).fillna(0)
     df['Proposal Rate %'] = df['Owner'].map(prop_rate).fillna(0) * 100
-    total_prop_rate = (df_subset.shape[0] / total_ncb) * 100 if total_ncb != 0 else 0
+    total_prop_rate = ((filter_date(op_proposal.copy(), column).shape[0] + filter_date(op_won.copy(), column).shape[0]) / total_ncb) * 100 if total_ncb != 0 else 0
 
     # Close Rate  
     df_subset = op_won.copy()
