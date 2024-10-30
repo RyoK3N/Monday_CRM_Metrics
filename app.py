@@ -229,7 +229,7 @@ def process_data(dataframes, st_date, end_date, column):
     close_rate_show = close / df.set_index('Owner')['Sales Call Taken']
     close_rate_show = close_rate_show.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate(Show) %'] = df['Owner'].map(close_rate_show).fillna(0) * 100
-    total_close_rate_show = (total_sct / total_close ) * 100 if total_close != 0 else 0
+    total_close_rate_show = (total_close/total_sct ) * 100 if total_close != 0 else 0
 
     # Close Rate (MQL)
     df_subset2 = op_proposal.copy()
