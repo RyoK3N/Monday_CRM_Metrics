@@ -237,8 +237,8 @@ def process_data(dataframes, st_date, end_date, column):
     close_show_rate_mql = close / prop_show_mql
     close_show_rate_mql = close_show_rate_mql.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate(MQL) %'] = df['Owner'].map(close_show_rate_mql).fillna(0) * 100
-    total_proposal = df_subset2.shape[0]
-    total_close_rate_mql = (total_proposal / total_close ) * 100 if total_close != 0 else 0
+    total_proposal_mql = filter_date(df_subset2, column).shape[0] + filter_date(op_won.copy(), column)
+    total_close_rate_mql = (total_close / total_proposal_mql ) * 100 if total_close != 0 else 0
 
     # Closed Revenue 
     df_subset = op_won.copy()
