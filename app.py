@@ -265,7 +265,7 @@ def process_data(dataframes, st_date, end_date, column):
     rev_per_proposal = owner_sum / prop
     rev_per_proposal = rev_per_proposal.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Proposal $'] = df['Owner'].map(rev_per_proposal).fillna(0) * 1  # Ensure it's numeric
-    total_rev_per_proposal = df['Revenue Per Proposal $'].sum()
+    total_rev_per_proposal = total_cr/total_proposal_mql
 
     # Pipeline Revenue 
     df_subset = op_proposal.copy()
