@@ -222,8 +222,8 @@ def process_data(dataframes, st_date, end_date, column):
     close_rate = close / df.set_index('Owner')['New Calls Booked']
     close_rate = close_rate.replace([np.inf, -np.inf], 0).fillna(0)
     df['Close Rate %'] = df['Owner'].map(close_rate).fillna(0) * 100
-    total_close = df_subset.shape[0]
-    total_close_rate = (total_ncb / total_close ) * 100 if total_close != 0 else 0
+    total_close = filter_date(df_subset, column).shape[0]
+    total_close_rate = (total_close / total_ncb) * 100 if total_close != 0 else 0
 
     # Close Rate (Show)
     close_rate_show = close / df.set_index('Owner')['Sales Call Taken']
