@@ -253,7 +253,7 @@ def process_data(dataframes, st_date, end_date, column):
     rev_per_call = owner_sum / df.set_index('Owner')['New Calls Booked']
     rev_per_call = rev_per_call.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Call $'] = df['Owner'].map(rev_per_call).fillna(0)
-    total_rev_per_call = df['Revenue Per Call $'].sum()/total_ncb
+    total_rev_per_call = total_cr/total_ncb
 
     # Revenue per Showed Up 
     rev_per_showed_up = owner_sum / df.set_index('Owner')['Sales Call Taken']
