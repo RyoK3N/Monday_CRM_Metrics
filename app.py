@@ -259,7 +259,7 @@ def process_data(dataframes, st_date, end_date, column):
     rev_per_showed_up = owner_sum / df.set_index('Owner')['Sales Call Taken']
     rev_per_showed_up = rev_per_showed_up.replace([np.inf, -np.inf], 0).fillna(0)
     df['Revenue Per Showed Up $'] = df['Owner'].map(rev_per_showed_up).fillna(0)
-    total_rev_per_showedup = df['Revenue Per Showed Up $'].sum()
+    total_rev_per_showedup = total_cr/total_sct
 
     # Revenue Per Proposal
     rev_per_proposal = owner_sum / prop
