@@ -395,7 +395,7 @@ def display_dataframe_with_total(df):
         st.error(f"An error occurred while displaying the DataFrame: {e}")
 
 def main():
-    st.title("Sales Dashboard : Monday.com")
+    st.title(" Cleverly  :: Sales Performance Dashboard ::  ")
     st.markdown("""
     This dashboard automatically fetches data from Monday.com, processes it, and provides visual insights into your sales performance.
     """)
