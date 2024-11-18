@@ -8,12 +8,27 @@ import streamlit as st
 import plotly.express as px
 from monday_extract_groups import fetch_items_recursive, fetch_groups
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
+import re
 
 # Load environment variables
 # load_dotenv()
 
 # Configure Streamlit page
 st.set_page_config(page_title="Sales Dashboard", layout="wide")
+
+date_pattern = r"\d{4}-\d{2}-\d{2}"
+
+def extract_date(value):
+    """
+    Extracts date from a string using a regex pattern.
+    """
+    if pd.isna(value) or value == 'NaT':
+        return None  # Handle NaT or NaN values
+    if isinstance(value, str):
+        match = re.search(date_pattern, value)
+        return match.group(0) if match else None
+    return None
+
 
 def items_to_dataframe(items):
     """
@@ -156,6 +171,15 @@ def process_data(dataframes, st_date, end_date, column):
     op_scheduled = dataframes.get('scheduled', pd.DataFrame())
     op_unqualified = dataframes.get('unqualified', pd.DataFrame())
     op_won = dataframes.get('won', pd.DataFrame())
+
+    
+    op_cancelled['Sales Call Date'] = op_cancelled['Sales Call Date'].apply(extract_date)
+    op_lost['Sales Call Date'] = op_lost['Sales Call Date'].apply(extract_date)
+    op_noshow['Sales Call Date'] = op_noshow['Sales Call Date'].apply(extract_date)
+    op_proposal['Sales Call Date'] = op_proposal['Sales Call Date'].apply(extract_date)
+    op_scheduled['Sales Call Date'] = op_scheduled['Sales Call Date'].apply(extract_date)
+    op_unqualified['Sales Call Date'] = op_unqualified['Sales Call Date'].apply(extract_date)
+    op_won['Sales Call Date'] = op_won['Sales Call Date'].apply(extract_date)
     
     # Combine all DataFrames
     list_all = [op_cancelled, op_lost, op_noshow, op_proposal, op_scheduled, op_unqualified, op_won]
